@@ -9,3 +9,4 @@ docker-compose.yml
 specs
 history
 .specify
+src/frontend-CLAUDE.md
