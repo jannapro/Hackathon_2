@@ -1,0 +1,12 @@
+src/backend
+.venv
+__pycache__
+*.pyc
+*.pyo
+uv.lock
+pyproject.toml
+docker-compose.yml
+specs
+history
+.specify
+src/frontend-CLAUDE.md

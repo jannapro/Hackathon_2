@@ -1,0 +1,6 @@
+{
+  "framework": "nextjs",
+  "env": {
+    "BETTER_AUTH_URL": "https://hackathon-2-git-003-ai-age-8a266f-jannatosmani14-2254s-projects.vercel.app"
+  }
+}
