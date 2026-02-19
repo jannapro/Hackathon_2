@@ -7,17 +7,26 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import FRONTEND_URL
 from app.database import init_db
+
+# Import models so SQLModel.metadata.create_all() picks up all tables
+import app.models.conversation  # noqa: F401
+import app.models.message  # noqa: F401
+
 from app.routers import tasks
+from app.routers import chat
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables on startup."""
+    """Create database tables on startup; shut down MCP server on exit."""
     await init_db()
     yield
+    # Gracefully shut down the MCP subprocess (if it was started)
+    from app.agent.runner import shutdown_mcp_server
+    await shutdown_mcp_server()
 
 
-app = FastAPI(title="Todo Web App API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Todo Web App API", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +37,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks.router)
+app.include_router(chat.router)
 
 
 @app.get("/")

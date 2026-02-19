@@ -63,3 +63,40 @@ export const api = {
 
   delete: (path: string) => apiClient(path, { method: "DELETE" }),
 };
+
+// ---------- Chat API ----------
+
+export interface ChatMessageItem {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface ChatHistoryResponse {
+  conversation_id: string;
+  messages: ChatMessageItem[];
+}
+
+export interface ChatSendResponse {
+  response: string;
+  conversation_id: string;
+}
+
+export async function fetchChatHistory(): Promise<ChatHistoryResponse> {
+  const res = await apiClient("/api/chat/history", { method: "GET" });
+  if (!res.ok) throw new Error(`Failed to load chat history: ${res.status}`);
+  return res.json();
+}
+
+export async function sendChatMessage(message: string): Promise<ChatSendResponse> {
+  const res = await apiClient("/api/chat/", {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.detail ?? `Chat request failed: ${res.status}`);
+  }
+  return res.json();
+}

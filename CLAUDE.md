@@ -214,6 +214,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 - In-memory (Python dictionary) (001-todo-cli-app)
 - Python (FastAPI backend), TypeScript (Next.js frontend) + FastAPI, SQLModel, Better Auth, Next.js 16+ (002-todo-web-app)
 - Neon Serverless PostgreSQL (002-todo-web-app)
+- Python 3.12+ (backend), TypeScript/Node 20+ (frontend) (003-ai-agent-interface)
+- Neon Serverless PostgreSQL — 2 new tables (`conversation`, `message`) (003-ai-agent-interface)
 
 ## Recent Changes
 - 001-todo-cli-app: Added Python >=3.14 + None (standard library only)

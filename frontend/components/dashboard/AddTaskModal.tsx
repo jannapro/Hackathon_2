@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { api } from "@/lib/api";
+import { useToast } from "@/components/providers/ToastProvider";
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -11,10 +12,11 @@ interface AddTaskModalProps {
 }
 
 export function AddTaskModal({ isOpen, onClose, onTaskCreated }: AddTaskModalProps) {
-  const [title, setTitle] = useState("");
+  const { toast } = useToast();
+  const [title, setTitle]           = useState("");
   const [description, setDescription] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError]           = useState("");
+  const [loading, setLoading]       = useState(false);
 
   if (!isOpen) return null;
 
@@ -22,43 +24,25 @@ export function AddTaskModal({ isOpen, onClose, onTaskCreated }: AddTaskModalPro
     e.preventDefault();
     setError("");
 
-    const trimmedTitle = title.trim();
-    const trimmedDesc = description.trim();
+    const t = title.trim();
+    const d = description.trim();
 
-    if (!trimmedTitle) {
-      setError("Title is required");
-      return;
-    }
-    if (trimmedTitle.length > 200) {
-      setError("Title must be 200 characters or fewer");
-      return;
-    }
-    if (!trimmedDesc) {
-      setError("Description is required");
-      return;
-    }
-    if (trimmedDesc.length > 1000) {
-      setError("Description must be 1000 characters or fewer");
-      return;
-    }
+    if (!t) { setError("Title is required"); return; }
+    if (t.length > 200) { setError("Title must be 200 characters or fewer"); return; }
+    if (!d) { setError("Description is required"); return; }
+    if (d.length > 1000) { setError("Description must be 1000 characters or fewer"); return; }
 
     setLoading(true);
     try {
-      const res = await api.post("/api/tasks/", {
-        title: trimmedTitle,
-        description: trimmedDesc,
-      });
-
+      const res = await api.post("/api/tasks/", { title: t, description: d });
       if (!res.ok) {
         const data = await res.json();
-        setError(
-          data.detail?.[0]?.message || data.detail || "Failed to create task"
-        );
+        setError(data.detail?.[0]?.message || data.detail || "Failed to create task");
         return;
       }
-
       setTitle("");
       setDescription("");
+      toast.success("Task created!");
       onTaskCreated();
       onClose();
     } catch {
@@ -69,32 +53,113 @@ export function AddTaskModal({ isOpen, onClose, onTaskCreated }: AddTaskModalPro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Overlay */}
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 60,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(4px)",
+        }}
       />
 
       {/* Modal */}
-      <div className="relative z-10 mx-4 w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+      <div
+        className="animate-fade-in"
+        style={{
+          position: "relative",
+          zIndex: 10,
+          width: "100%",
+          maxWidth: "480px",
+          margin: "0 16px",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "16px",
+          padding: "24px",
+          boxShadow: "0 32px 64px rgba(0,0,0,0.5)",
+        }}
+      >
         {/* Header */}
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-            Create New Task
-          </h2>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "20px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                background: "var(--gold-dim)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "15px",
+              }}
+            >
+              ✦
+            </div>
+            <h2
+              style={{
+                fontFamily: "var(--font-cinzel), serif",
+                fontSize: "13px", letterSpacing: "2px",
+                textTransform: "uppercase",
+                color: "var(--gold)",
+              }}
+            >
+              New Task
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            style={{
+              width: "28px",
+              height: "28px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "6px",
+              background: "transparent",
+              border: "none",
+              color: "var(--text3)",
+              cursor: "pointer",
+              transition: "background 0.1s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface2)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
-            <X className="h-5 w-5" />
+            <X size={16} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {/* Title */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "var(--text2)",
+                marginBottom: "6px",
+              }}
+            >
               Title
             </label>
             <input
@@ -104,53 +169,87 @@ export function AddTaskModal({ isOpen, onClose, onTaskCreated }: AddTaskModalPro
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
               autoFocus
-              className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500 dark:focus:border-indigo-400"
+              className="input-base"
+              style={{ fontSize: "13px" }}
             />
-            <p className="mt-1 text-right text-xs text-gray-400">
+            <p style={{ marginTop: "4px", textAlign: "right", fontSize: "11px", color: "var(--text3)" }}>
               {title.length}/200
             </p>
           </div>
 
           {/* Description */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "var(--text2)",
+                marginBottom: "6px",
+              }}
+            >
               Description
             </label>
             <textarea
-              placeholder="Add details about this task..."
+              placeholder="Add details about this task…"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={1000}
               rows={4}
-              className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:border-indigo-400"
+              className="input-base"
+              style={{ fontSize: "13px", resize: "none" }}
             />
-            <p className="mt-1 text-right text-xs text-gray-400">
+            <p style={{ marginTop: "4px", textAlign: "right", fontSize: "11px", color: "var(--text3)" }}>
               {description.length}/1000
             </p>
           </div>
 
           {/* Error */}
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
+            <p
+              style={{
+                padding: "10px 14px",
+                borderRadius: "8px",
+                background: "rgba(239,68,68,0.1)",
+                border: "1px solid rgba(239,68,68,0.2)",
+                fontSize: "13px",
+                color: "#EF4444",
+              }}
+            >
               {error}
             </p>
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", paddingTop: "4px" }}>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              style={{
+                padding: "9px 18px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--text2)",
+                background: "var(--surface2)",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+              className="btn-gold font-display"
+              style={{
+                padding: "9px 20px",
+                borderRadius: "8px",
+                fontSize: "9px",
+                letterSpacing: "1.5px",
+              }}
             >
-              {loading ? "Creating..." : "Create Task"}
+              {loading ? "Creating…" : "Create Task"}
             </button>
           </div>
         </form>

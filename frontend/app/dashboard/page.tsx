@@ -4,15 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { api } from "@/lib/api";
+import { Plus, Loader2 } from "lucide-react";
 
-import { Sidebar } from "@/components/dashboard/Sidebar";
-import { TopBar } from "@/components/dashboard/TopBar";
-import { Welcome } from "@/components/dashboard/Welcome";
-import { StatsCards } from "@/components/dashboard/StatsCards";
-import { FilterTabs } from "@/components/dashboard/FilterTabs";
-import { TaskCard } from "@/components/dashboard/TaskCard";
-import { ProgressRing } from "@/components/dashboard/ProgressRing";
-import { AddTaskModal } from "@/components/dashboard/AddTaskModal";
+import { Sidebar }        from "@/components/dashboard/Sidebar";
+import { TopBar }         from "@/components/dashboard/TopBar";
+import { StatsCards }     from "@/components/dashboard/StatsCards";
+import { TaskCard }       from "@/components/dashboard/TaskCard";
+import { AddTaskModal }   from "@/components/dashboard/AddTaskModal";
+import { AnalyticsPanel } from "@/components/dashboard/AnalyticsPanel";
+import { ChatWidget }     from "@/components/chat/ChatWidget";
 
 interface Task {
   id: string;
@@ -27,30 +27,16 @@ export default function DashboardPage() {
   const { session, isPending } = useAuth();
   const router = useRouter();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [modalOpen, setModalOpen]     = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [allTasks, setAllTasks]       = useState<Task[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState("");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // Initialize theme on mount
+  // Redirect if unauthenticated
   useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    if (
-      stored === "dark" ||
-      (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches)
-    ) {
-      document.documentElement.classList.add("dark");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isPending && !session?.user) {
-      router.push("/");
-    }
+    if (!isPending && !session?.user) router.push("/");
   }, [isPending, session, router]);
 
   const fetchTasks = useCallback(async () => {
@@ -59,15 +45,10 @@ export default function DashboardPage() {
     try {
       const res = await api.get("/api/tasks/");
       if (!res.ok) {
-        if (res.status === 401) {
-          setError("Session expired. Please log in again.");
-          return;
-        }
-        setError("Failed to load tasks");
+        setError(res.status === 401 ? "Session expired. Please log in again." : "Failed to load tasks");
         return;
       }
-      const data: Task[] = await res.json();
-      setAllTasks(data);
+      setAllTasks(await res.json());
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -75,186 +56,278 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const refreshSilently = useCallback(async () => {
+    try {
+      const res = await api.get("/api/tasks/");
+      if (res.ok) setAllTasks(await res.json());
+    } catch { /* silently ignore */ }
+  }, []);
+
   useEffect(() => {
-    if (session?.user) {
-      fetchTasks();
-    }
+    if (session?.user) fetchTasks();
   }, [session, fetchTasks]);
 
+  // ── Loading state ──────────────────────────────────────────────
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-          <span className="text-gray-500 dark:text-gray-400">Loading...</span>
-        </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          background: "var(--bg)",
+          gap: "12px",
+          color: "var(--text3)",
+        }}
+      >
+        <Loader2 size={20} className="animate-spin" />
+        <span style={{ fontSize: "14px" }}>Loading…</span>
       </div>
     );
   }
 
-  if (!session?.user) {
-    return null;
-  }
+  if (!session?.user) return null;
 
-  // Derived stats from all tasks
+  // ── Derived data ───────────────────────────────────────────────
   const completedTasks = allTasks.filter((t) => t.status === "completed");
-  const pendingTasks = allTasks.filter((t) => t.status === "pending");
+  const pendingTasks   = allTasks.filter((t) => t.status === "pending");
 
-  // Filter + search for display
-  const filteredTasks = allTasks.filter((task) => {
-    const matchesStatus =
-      statusFilter === "all" || task.status === statusFilter;
-    const matchesSearch =
-      !searchQuery.trim() ||
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+  const filteredTasks = allTasks.filter((t) => {
+    const q = searchQuery.toLowerCase().trim();
+    return !q || t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q);
   });
 
-  // Separate pending and completed for display
-  const displayPending = filteredTasks.filter((t) => t.status === "pending");
-  const displayCompleted = filteredTasks.filter(
-    (t) => t.status === "completed"
-  );
+  const recentPending   = filteredTasks.filter((t) => t.status === "pending").slice(0, 6);
+  const recentCompleted = filteredTasks.filter((t) => t.status === "completed").slice(0, 4);
+
+  const hour     = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const userName = session.user.name || session.user.email?.split("@")[0] || "User";
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
+      {/* ── Animated grid background ── */}
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden",
+          backgroundImage: `
+            linear-gradient(var(--grid-line) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)
+          `,
+          backgroundSize: "52px 52px",
+          animation: "gridDrift 24s linear infinite",
+        }}
+      />
+      {/* ── Aurora radial glow ── */}
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
+          background: `
+            radial-gradient(ellipse 60% 40% at 50% -10%, var(--aurora-gold) 0%, transparent 60%),
+            radial-gradient(ellipse 40% 50% at 100% 30%,  var(--aurora-cyan) 0%, transparent 55%),
+            radial-gradient(ellipse 35% 45% at 0%   70%,  var(--aurora-rose) 0%, transparent 55%)
+          `,
+          animation: "auroraPulse 12s ease-in-out infinite",
+        }}
+      />
 
-      {/* Main content area */}
-      <div className="flex flex-1 flex-col lg:ml-64">
-        {/* TopBar */}
-        <TopBar
-          onMenuClick={() => setSidebarOpen(true)}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+      <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-        {/* Page content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {/* Welcome section */}
-          <Welcome
+      {/* Main content — offset for fixed sidebar */}
+      <div className="main-offset">
+        <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} onMenuToggle={() => setMobileNavOpen((v) => !v)} />
+
+        <main style={{ flex: 1, overflowY: "auto" }}>
+        <div className="two-col-layout">
+        {/* ── Left: main content ─────────────────────── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Page header */}
+          <div
+            className="page-header-row"
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              marginBottom: "28px",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <h1
+                style={{
+                  fontFamily: "var(--font-cinzel), serif",
+                  fontSize: "20px", fontWeight: 700,
+                  letterSpacing: "1px",
+                  color: "var(--text)", marginBottom: "5px",
+                }}
+              >
+                {greeting}, {userName}
+              </h1>
+              <p style={{ fontFamily: "var(--font-rajdhani), sans-serif", fontSize: "13px", color: "var(--text3)" }}>
+                {allTasks.length === 0
+                  ? "You have no tasks yet. Create one to get started."
+                  : `${pendingTasks.length} pending · ${completedTasks.length} completed`}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setModalOpen(true)}
+              className="btn-gold font-display"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "7px",
+                padding: "10px 20px",
+                borderRadius: "9px",
+                fontSize: "9px",
+                letterSpacing: "1.5px",
+              }}
+            >
+              <Plus size={14} />
+              New Task
+            </button>
+          </div>
+
+          {/* Stats */}
+          <StatsCards
             totalTasks={allTasks.length}
             completedTasks={completedTasks.length}
-            onAddTask={() => setModalOpen(true)}
+            pendingTasks={pendingTasks.length}
           />
 
-          {/* Stats cards */}
-          <div className="mt-6">
-            <StatsCards
-              totalTasks={allTasks.length}
-              completedTasks={completedTasks.length}
-              pendingTasks={pendingTasks.length}
-            />
-          </div>
-
-          {/* Progress overview */}
-          {allTasks.length > 0 && (
-            <div className="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                Task Progress
-              </h2>
-              <div className="flex flex-wrap items-center justify-center gap-8 sm:justify-start">
-                <ProgressRing
-                  label="Completed"
-                  value={completedTasks.length}
-                  total={allTasks.length}
-                  color="#10b981"
-                  bgColor="#d1fae5"
-                />
-                <ProgressRing
-                  label="Pending"
-                  value={pendingTasks.length}
-                  total={allTasks.length}
-                  color="#f59e0b"
-                  bgColor="#fef3c7"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Filter tabs */}
-          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <FilterTabs
-              activeFilter={statusFilter}
-              onFilterChange={setStatusFilter}
-              counts={{
-                all: allTasks.length,
-                pending: pendingTasks.length,
-                completed: completedTasks.length,
-              }}
-            />
-          </div>
-
           {/* Task content */}
-          <div className="mt-4">
+          <div style={{ marginTop: "32px" }}>
             {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+              <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
+                <Loader2 size={22} className="animate-spin" style={{ color: "var(--text3)" }} />
               </div>
             ) : error ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-900/20">
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  {error}
-                </p>
+              <div
+                style={{
+                  padding: "20px",
+                  borderRadius: "12px",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.2)",
+                  color: "#EF4444",
+                  fontSize: "13px",
+                  textAlign: "center",
+                }}
+              >
+                {error}
               </div>
-            ) : filteredTasks.length === 0 ? (
-              <div className="rounded-xl border border-gray-100 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-800">
-                <p className="text-gray-400 dark:text-gray-500">
-                  {searchQuery || statusFilter !== "all"
-                    ? "No matching tasks found"
-                    : "No tasks yet. Click \"Add Task\" to get started!"}
+            ) : allTasks.length === 0 ? (
+              <div
+                style={{
+                  padding: "48px 24px",
+                  textAlign: "center",
+                  borderRadius: "12px",
+                  border: "1px dashed var(--border2)",
+                  color: "var(--text3)",
+                }}
+              >
+                <p style={{ fontSize: "14px", fontWeight: 500, marginBottom: "6px", color: "var(--text2)" }}>
+                  No tasks yet
+                </p>
+                <p style={{ fontSize: "13px" }}>
+                  Create your first task or ask the AI assistant.
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {/* Pending tasks */}
-                {displayPending.length > 0 && (
-                  <div>
-                    {statusFilter === "all" && (
-                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                        Pending ({displayPending.length})
-                      </h3>
-                    )}
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                      {displayPending.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onUpdated={fetchTasks}
-                        />
+              <>
+                {/* Pending section */}
+                {recentPending.length > 0 && (
+                  <section style={{ marginBottom: "32px" }}>
+                    <h2
+                      style={{
+                        fontFamily: "var(--font-cinzel), serif",
+                        fontSize: "8px", letterSpacing: "3px",
+                        textTransform: "uppercase",
+                        color: "var(--gold)", marginBottom: "14px",
+                      }}
+                    >
+                      Pending · {pendingTasks.length}
+                    </h2>
+                    <div className="task-grid">
+                      {recentPending.map((task, i) => (
+                        <TaskCard key={task.id} task={task} onUpdated={refreshSilently} animDelay={i * 60} />
                       ))}
                     </div>
-                  </div>
+                    {pendingTasks.length > 6 && (
+                      <button
+                        onClick={() => router.push("/tasks")}
+                        style={{
+                          marginTop: "12px",
+                          fontFamily: "var(--font-rajdhani), sans-serif",
+                          fontSize: "12px",
+                          color: "var(--gold)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontWeight: 500,
+                        }}
+                      >
+                        View all {pendingTasks.length} pending tasks →
+                      </button>
+                    )}
+                  </section>
                 )}
 
-                {/* Completed tasks */}
-                {displayCompleted.length > 0 && (
-                  <div>
-                    {statusFilter === "all" && (
-                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                        Completed ({displayCompleted.length})
-                      </h3>
-                    )}
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                      {displayCompleted.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onUpdated={fetchTasks}
-                        />
+                {/* Recently completed */}
+                {recentCompleted.length > 0 && (
+                  <section>
+                    <h2
+                      style={{
+                        fontFamily: "var(--font-cinzel), serif",
+                        fontSize: "8px", letterSpacing: "3px",
+                        textTransform: "uppercase",
+                        color: "var(--green)", marginBottom: "14px",
+                      }}
+                    >
+                      Recently completed · {completedTasks.length}
+                    </h2>
+                    <div className="task-grid">
+                      {recentCompleted.map((task, i) => (
+                        <TaskCard key={task.id} task={task} onUpdated={refreshSilently} animDelay={i * 60} />
                       ))}
                     </div>
-                  </div>
+                    {completedTasks.length > 4 && (
+                      <button
+                        onClick={() => router.push("/tasks?filter=completed")}
+                        style={{
+                          marginTop: "12px",
+                          fontFamily: "var(--font-rajdhani), sans-serif",
+                          fontSize: "12px",
+                          color: "var(--green)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontWeight: 500,
+                        }}
+                      >
+                        View all {completedTasks.length} completed tasks →
+                      </button>
+                    )}
+                  </section>
                 )}
-              </div>
+              </>
             )}
           </div>
+        </div>{/* end left column */}
+
+        {/* ── Right: analytics sidebar ───────────────── */}
+        <div className="analytics-col">
+          <AnalyticsPanel tasks={allTasks} />
         </div>
+
+        </div>{/* end two-col flex */}
+        </main>
       </div>
 
-      {/* Add Task Modal */}
+      {/* Floating AI chat */}
+      <ChatWidget onTaskMutated={refreshSilently} />
+
+      {/* Add task modal */}
       <AddTaskModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

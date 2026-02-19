@@ -2,213 +2,303 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signIn, signUp, useSession } from "@/lib/auth-client";
-import { CheckSquare, ArrowRight } from "lucide-react";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { signIn, signUp } from "@/lib/auth-client";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
-export default function Home() {
-  const [isSignUp, setIsSignUp] = useState(false);
+export default function AuthPage() {
+  const { session, isPending } = useAuth();
+  const router = useRouter();
+
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { data: session } = useSession();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [shakeField, setShakeField] = useState("");
 
   useEffect(() => {
-    if (session?.user) {
-      router.push("/dashboard");
+    if (!isPending && session?.user) {
+      router.replace("/dashboard");
     }
-  }, [session, router]);
+  }, [isPending, session, router]);
 
-  // Initialize theme
-  useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    if (
-      stored === "dark" ||
-      (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches)
-    ) {
-      document.documentElement.classList.add("dark");
-    }
-  }, []);
+  const shake = (field: string) => {
+    setShakeField(field);
+    setTimeout(() => setShakeField(""), 400);
+  };
 
-  if (session?.user) {
-    return null;
-  }
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (mode === "signup" && !name.trim()) errs.name = "Name is required";
+    if (!email.trim()) errs.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      errs.email = "Invalid email address";
+    if (!password) errs.password = "Password is required";
+    else if (password.length < 8) errs.password = "Minimum 8 characters";
+    if (mode === "signup" && password !== confirmPassword)
+      errs.confirmPassword = "Passwords do not match";
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) shake(Object.keys(errs)[0]);
+    return Object.keys(errs).length === 0;
+  };
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    if (!validate()) return;
     setLoading(true);
-
     try {
-      if (isSignUp) {
-        const result = await signUp.email({
-          email,
-          password,
-          name: name.trim() || email.split("@")[0],
-        });
-        if (result.error) {
-          setError(result.error.message || "Signup failed");
-          setLoading(false);
-          return;
+      if (mode === "login") {
+        const res = await signIn.email({ email, password });
+        if (res.error) {
+          setErrors({ email: res.error.message ?? "Invalid credentials" });
+          shake("email");
+        } else {
+          router.replace("/dashboard");
         }
       } else {
-        const result = await signIn.email({ email, password });
-        if (result.error) {
-          setError(result.error.message || "Invalid credentials");
-          setLoading(false);
-          return;
+        const res = await signUp.email({ name, email, password });
+        if (res.error) {
+          setErrors({ email: res.error.message ?? "Sign up failed" });
+          shake("email");
+        } else {
+          router.replace("/dashboard");
         }
       }
-      router.push("/dashboard");
     } catch {
-      setError("Something went wrong. Please try again.");
+      setErrors({ email: "Something went wrong. Try again." });
+    } finally {
       setLoading(false);
     }
-  }
+  };
+
+  const switchMode = () => {
+    setMode((m) => (m === "login" ? "signup" : "login"));
+    setErrors({});
+    setName(""); setEmail(""); setPassword(""); setConfirmPassword("");
+  };
+
+  if (isPending) return null;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Left panel — branding */}
-      <div className="hidden w-1/2 items-center justify-center bg-[#1e1b4b] lg:flex">
-        <div className="max-w-md px-8 text-center">
-          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500">
-            <CheckSquare className="h-8 w-8 text-white" />
+    <div
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{ background: "var(--bg)" }}
+    >
+      {/* Gold blob — top left */}
+      <div
+        className="animate-blob absolute pointer-events-none"
+        style={{
+          top: "-180px", left: "-180px",
+          width: "620px", height: "620px",
+          borderRadius: "50%",
+          background: "rgba(201,168,76,0.18)",
+          filter: "blur(110px)",
+        }}
+      />
+      {/* Deep gold blob — bottom right */}
+      <div
+        className="animate-blob-d1 absolute pointer-events-none"
+        style={{
+          bottom: "-180px", right: "-180px",
+          width: "620px", height: "620px",
+          borderRadius: "50%",
+          background: "rgba(138,96,16,0.20)",
+          filter: "blur(110px)",
+        }}
+      />
+      {/* Faint gold centre pulse */}
+      <div
+        className="animate-blob-d2 absolute pointer-events-none"
+        style={{
+          top: "50%", left: "50%",
+          transform: "translate(-50%,-50%)",
+          width: "420px", height: "420px",
+          borderRadius: "50%",
+          background: "rgba(201,168,76,0.07)",
+          filter: "blur(90px)",
+        }}
+      />
+
+      {/* Glass card */}
+      <div
+        className="glass animate-fade-in relative z-10 w-full mx-4 rounded-2xl p-8"
+        style={{ maxWidth: "420px", boxShadow: "0 32px 64px rgba(0,0,0,0.4)" }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-8">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: "linear-gradient(135deg,#8a6010,#c9a84c,#f0d060)",
+              fontSize: "18px",
+              animation: "logoPulse 3.5s ease-in-out infinite",
+            }}
+          >
+            ⚡
           </div>
-          <h2 className="mb-3 text-3xl font-bold text-white">TaskFlow</h2>
-          <p className="text-lg text-indigo-200">
-            Organize your work, boost your productivity. The modern way to manage
-            tasks.
-          </p>
-          <div className="mt-10 space-y-4 text-left">
-            {[
-              "Create and organize tasks effortlessly",
-              "Track progress with visual dashboards",
-              "Search, filter, and manage with ease",
-            ].map((feature) => (
-              <div key={feature} className="flex items-center gap-3 text-indigo-200">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-500/50">
-                  <ArrowRight className="h-3.5 w-3.5 text-white" />
-                </div>
-                <span className="text-sm">{feature}</span>
-              </div>
-            ))}
-          </div>
+          <span
+            style={{
+              fontFamily: "var(--font-cinzel), serif",
+              fontSize: "16px", fontWeight: 700, letterSpacing: "2px",
+              background: "linear-gradient(135deg,#c9a84c,#f0d060,#c9a84c)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            TaskFlow
+          </span>
         </div>
-      </div>
 
-      {/* Right panel — auth form */}
-      <div className="flex flex-1 items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="mb-8 flex items-center justify-center gap-2.5 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
-              <CheckSquare className="h-5 w-5 text-white" />
+        {/* Title */}
+        <div className="mb-6">
+          <h1 className="font-heading text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
+            {mode === "login" ? "Welcome back" : "Create account"}
+          </h1>
+          <p className="text-sm" style={{ color: "var(--text2)" }}>
+            {mode === "login"
+              ? "Sign in to your TaskFlow account"
+              : "Start managing tasks with AI assistance"}
+          </p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Name (signup only) */}
+          {mode === "signup" && (
+            <div className={shakeField === "name" ? "animate-shake" : ""}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text2)" }}>
+                Full Name
+              </label>
+              <input
+                className={`input-base ${errors.name ? "error" : ""}`}
+                type="text"
+                placeholder="Jane Smith"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
+              />
+              {errors.name && (
+                <p className="mt-1 text-xs" style={{ color: "#EF4444" }}>{errors.name}</p>
+              )}
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">
-              TaskFlow
-            </span>
+          )}
+
+          {/* Email */}
+          <div className={shakeField === "email" ? "animate-shake" : ""}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text2)" }}>
+              Email
+            </label>
+            <input
+              className={`input-base ${errors.email ? "error" : ""}`}
+              type="email"
+              placeholder="jane@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+            />
+            {errors.email && (
+              <p className="mt-1 text-xs" style={{ color: "#EF4444" }}>{errors.email}</p>
+            )}
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {isSignUp ? "Create your account" : "Welcome back"}
-          </h1>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {isSignUp
-              ? "Start managing your tasks today"
-              : "Sign in to continue to your dashboard"}
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            {isSignUp && (
-              <div>
-                <label
-                  htmlFor="name"
-                  className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Full Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
-                  placeholder="John Doe"
-                />
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Email
-              </label>
+          {/* Password */}
+          <div className={shakeField === "password" ? "animate-shake" : ""}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text2)" }}>
+              Password
+            </label>
+            <div style={{ position: "relative" }}>
               <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                minLength={8}
+                className={`input-base ${errors.password ? "error" : ""}`}
+                style={{ paddingRight: "40px" }}
+                type={showPassword ? "text" : "password"}
+                placeholder="Min. 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
-                placeholder="Min. 8 characters"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                style={{
+                  position: "absolute", right: "12px", top: "50%",
+                  transform: "translateY(-50%)", color: "var(--text3)",
+                  background: "none", border: "none", cursor: "pointer",
+                }}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
             </div>
-
-            {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                {error}
-              </p>
+            {errors.password && (
+              <p className="mt-1 text-xs" style={{ color: "#EF4444" }}>{errors.password}</p>
             )}
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-900"
-            >
-              {loading
-                ? "Please wait..."
-                : isSignUp
-                  ? "Create Account"
-                  : "Sign In"}
-            </button>
-          </form>
+          {/* Confirm password (signup only) */}
+          {mode === "signup" && (
+            <div className={shakeField === "confirmPassword" ? "animate-shake" : ""}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text2)" }}>
+                Confirm Password
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  className={`input-base ${errors.confirmPassword ? "error" : ""}`}
+                  style={{ paddingRight: "40px" }}
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="Repeat your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  style={{
+                    position: "absolute", right: "12px", top: "50%",
+                    transform: "translateY(-50%)", color: "var(--text3)",
+                    background: "none", border: "none", cursor: "pointer",
+                  }}
+                >
+                  {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="mt-1 text-xs" style={{ color: "#EF4444" }}>{errors.confirmPassword}</p>
+              )}
+            </div>
+          )}
 
-          <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError("");
-              }}
-              className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
-            >
-              {isSignUp ? "Sign In" : "Sign Up"}
-            </button>
-          </p>
-        </div>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-gold font-display flex items-center justify-center gap-2"
+            style={{ width: "100%", padding: "12px", borderRadius: "10px", fontSize: "9px", letterSpacing: "1.5px" }}
+          >
+            {loading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {mode === "login" ? "Signing in…" : "Creating account…"}
+              </>
+            ) : mode === "login" ? "Sign in" : "Create account"}
+          </button>
+        </form>
+
+        {/* Toggle */}
+        <p className="mt-6 text-center text-sm" style={{ color: "var(--text2)" }}>
+          {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+          <button
+            onClick={switchMode}
+            style={{ color: "var(--gold)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}
+          >
+            {mode === "login" ? "Sign up" : "Sign in"}
+          </button>
+        </p>
       </div>
     </div>
   );
