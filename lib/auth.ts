@@ -6,6 +6,62 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Ensure Better Auth schema tables exist in Neon on cold start.
+// Uses CREATE TABLE IF NOT EXISTS so it is safe to run on every startup.
+async function initSchema() {
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS "user" (
+      "id"            text      NOT NULL PRIMARY KEY,
+      "name"          text      NOT NULL,
+      "email"         text      NOT NULL UNIQUE,
+      "emailVerified" boolean   NOT NULL DEFAULT false,
+      "image"         text,
+      "createdAt"     timestamp NOT NULL DEFAULT now(),
+      "updatedAt"     timestamp NOT NULL DEFAULT now()
+    )`,
+    `CREATE TABLE IF NOT EXISTS "session" (
+      "id"          text      NOT NULL PRIMARY KEY,
+      "expiresAt"   timestamp NOT NULL,
+      "token"       text      NOT NULL UNIQUE,
+      "createdAt"   timestamp NOT NULL DEFAULT now(),
+      "updatedAt"   timestamp NOT NULL DEFAULT now(),
+      "ipAddress"   text,
+      "userAgent"   text,
+      "userId"      text      NOT NULL REFERENCES "user"("id") ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS "account" (
+      "id"                     text      NOT NULL PRIMARY KEY,
+      "accountId"              text      NOT NULL,
+      "providerId"             text      NOT NULL,
+      "userId"                 text      NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+      "accessToken"            text,
+      "refreshToken"           text,
+      "idToken"                text,
+      "accessTokenExpiresAt"   timestamp,
+      "refreshTokenExpiresAt"  timestamp,
+      "scope"                  text,
+      "password"               text,
+      "createdAt"              timestamp NOT NULL DEFAULT now(),
+      "updatedAt"              timestamp NOT NULL DEFAULT now()
+    )`,
+    `CREATE TABLE IF NOT EXISTS "verification" (
+      "id"         text      NOT NULL PRIMARY KEY,
+      "identifier" text      NOT NULL,
+      "value"      text      NOT NULL,
+      "expiresAt"  timestamp NOT NULL,
+      "createdAt"  timestamp,
+      "updatedAt"  timestamp
+    )`,
+  ];
+
+  for (const sql of statements) {
+    await pool.query(sql);
+  }
+  console.log("[DB] Better Auth schema ready");
+}
+
+initSchema().catch((err) => console.error("[DB] Schema init failed:", err));
+
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
