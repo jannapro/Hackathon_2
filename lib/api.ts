@@ -1,4 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Tasks are served by Next.js API routes on the same origin.
+// Set NEXT_PUBLIC_API_URL only if you deploy the FastAPI backend separately.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = {

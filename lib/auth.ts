@@ -52,6 +52,18 @@ async function initSchema() {
       "createdAt"  timestamp,
       "updatedAt"  timestamp
     )`,
+    // Task table — managed by Next.js API routes, no separate backend needed
+    `CREATE TABLE IF NOT EXISTS task (
+      id          UUID      NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      title       TEXT      NOT NULL,
+      description TEXT      NOT NULL DEFAULT '',
+      status      TEXT      NOT NULL DEFAULT 'pending',
+      user_id     TEXT      NOT NULL,
+      created_at  TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at  TIMESTAMP NOT NULL DEFAULT now()
+    )`,
+    `CREATE INDEX IF NOT EXISTS ix_task_user_id     ON task(user_id)`,
+    `CREATE INDEX IF NOT EXISTS ix_task_user_status ON task(user_id, status)`,
   ];
 
   for (const sql of statements) {
