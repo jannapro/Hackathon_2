@@ -64,6 +64,20 @@ async function initSchema() {
     )`,
     `CREATE INDEX IF NOT EXISTS ix_task_user_id     ON task(user_id)`,
     `CREATE INDEX IF NOT EXISTS ix_task_user_status ON task(user_id, status)`,
+    // Chat tables — managed by Next.js API routes and Python serverless functions
+    `CREATE TABLE IF NOT EXISTS conversation (
+      id          UUID      NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id     TEXT      NOT NULL,
+      created_at  TIMESTAMP NOT NULL DEFAULT now()
+    )`,
+    `CREATE TABLE IF NOT EXISTS message (
+      id              UUID         NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+      conversation_id UUID         NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+      role            VARCHAR(20)  NOT NULL,
+      content         TEXT         NOT NULL,
+      created_at      TIMESTAMP    NOT NULL DEFAULT now()
+    )`,
+    `CREATE INDEX IF NOT EXISTS ix_message_conv_id ON message(conversation_id)`,
   ];
 
   for (const sql of statements) {
