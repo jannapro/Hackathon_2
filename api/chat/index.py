@@ -12,7 +12,7 @@ import os
 import uuid
 from datetime import datetime
 
-import psycopg2
+import psycopg
 from openai import OpenAI
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -143,7 +143,7 @@ TOOLS = [
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL)
 
 
 def ensure_tables(cur):

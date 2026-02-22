@@ -10,13 +10,13 @@ import json
 import os
 from datetime import datetime
 
-import psycopg2
+import psycopg
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL)
 
 
 def verify_token(token: str):
