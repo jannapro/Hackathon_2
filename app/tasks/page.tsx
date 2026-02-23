@@ -34,7 +34,7 @@ function TasksContent() {
 
   const [modalOpen, setModalOpen]     = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter]           = useState(searchParams.get("filter") || "all");
+  const [filter, setFilter]           = useState(searchParams?.get("filter") || "all");
   const [allTasks, setAllTasks]       = useState<Task[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");

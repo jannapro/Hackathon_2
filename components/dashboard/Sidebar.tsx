@@ -155,7 +155,7 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         </div>
 
         {NAV.map(({ label, icon, href, soon, disabled }) => {
-          const active = href ? pathname.startsWith(href) : false;
+          const active = href ? pathname?.startsWith(href) : false;
 
           if (href) {
             return (
