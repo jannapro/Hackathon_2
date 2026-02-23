@@ -7,6 +7,6 @@ uv.lock
 pyproject.toml
 docker-compose.yml
 specs
-history
+/history
 .specify
 src/frontend-CLAUDE.md
