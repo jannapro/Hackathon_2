@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { type NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { getUserId } from "@/lib/server-auth";
@@ -18,11 +19,18 @@ async function ensureTaskTable() {
       updated_at  TIMESTAMP   NOT NULL DEFAULT now()
     )
   `);
-  // Ensure server-side defaults exist for columns created without them by the Python backend
-  await pool.query(`ALTER TABLE task ALTER COLUMN status      SET DEFAULT 'pending'`);
-  await pool.query(`ALTER TABLE task ALTER COLUMN description SET DEFAULT ''`);
-  await pool.query(`ALTER TABLE task ALTER COLUMN created_at  SET DEFAULT now()`);
-  await pool.query(`ALTER TABLE task ALTER COLUMN updated_at  SET DEFAULT now()`);
+  // Best-effort: add server defaults for columns created without them by the Python backend.
+  // Each ALTER TABLE is wrapped individually — failure on one does not block the others.
+  const alters = [
+    `ALTER TABLE task ALTER COLUMN id          SET DEFAULT gen_random_uuid()`,
+    `ALTER TABLE task ALTER COLUMN status      SET DEFAULT 'pending'`,
+    `ALTER TABLE task ALTER COLUMN description SET DEFAULT ''`,
+    `ALTER TABLE task ALTER COLUMN created_at  SET DEFAULT now()`,
+    `ALTER TABLE task ALTER COLUMN updated_at  SET DEFAULT now()`,
+  ];
+  for (const sql of alters) {
+    try { await pool.query(sql); } catch { /* already set or unsupported — ignore */ }
+  }
   await pool.query(`CREATE INDEX IF NOT EXISTS ix_task_user_id     ON task(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ix_task_user_status ON task(user_id, status)`);
 }
@@ -98,11 +106,12 @@ export async function POST(req: NextRequest) {
   try {
     await ensureTaskTable();
     const pool = getPool();
+    const newId = randomUUID();
     const result = await pool.query(
-      `INSERT INTO task (title, description, status, user_id, created_at, updated_at)
-       VALUES ($1, $2, 'pending', $3, now(), now())
+      `INSERT INTO task (id, title, description, status, user_id, created_at, updated_at)
+       VALUES ($1, $2, $3, 'pending', $4, now(), now())
        RETURNING id, title, description, status, created_at, updated_at`,
-      [title, description, userId]
+      [newId, title, description, userId]
     );
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (err) {
