@@ -1,10 +1,7 @@
 import { betterAuth } from "better-auth";
-import { Pool } from "pg";
+import { getPool } from "./db";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = getPool();
 
 // Ensure Better Auth schema tables exist in Neon on cold start.
 // Uses CREATE TABLE IF NOT EXISTS so it is safe to run on every startup.

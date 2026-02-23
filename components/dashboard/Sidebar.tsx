@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 const NAV = [
   { label: "Dashboard", icon: "⬡", href: "/dashboard" },
   { label: "All Tasks",  icon: "✦", href: "/tasks" },
-  { label: "AI Agent",   icon: "◈", href: null, soon: false, disabled: true },
+  { label: "AI Agent",   icon: "◈", href: "/agent" },
   { label: "Calendar",   icon: "△", href: null, soon: true },
   { label: "Settings",   icon: "◇", href: null, soon: true },
 ];
@@ -154,7 +154,7 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           Workspace
         </div>
 
-        {NAV.map(({ label, icon, href, soon, disabled }) => {
+        {NAV.map(({ label, icon, href, soon }) => {
           const active = href ? pathname?.startsWith(href) : false;
 
           if (href) {

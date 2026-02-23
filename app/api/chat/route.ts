@@ -4,6 +4,7 @@ import { getPool } from "@/lib/db";
 import OpenAI from "openai";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // Allow up to 60s for multi-step agent loops
 
 const SYSTEM_PROMPT =
   "You are a helpful task-management assistant called TaskFlow AI. " +
@@ -188,7 +189,7 @@ async function runAgent(userMessage: string, userId: string): Promise<string> {
     { role: "user", content: userMessage },
   ];
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 6; i++) {
     const resp = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages,

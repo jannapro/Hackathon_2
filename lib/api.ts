@@ -92,7 +92,7 @@ export async function fetchChatHistory(): Promise<ChatHistoryResponse> {
 }
 
 export async function sendChatMessage(message: string): Promise<ChatSendResponse> {
-  const res = await apiClient("/api/chat/", {
+  const res = await apiClient("/api/chat", {
     method: "POST",
     body: JSON.stringify({ message }),
   });
