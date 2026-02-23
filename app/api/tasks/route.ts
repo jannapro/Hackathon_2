@@ -94,8 +94,8 @@ export async function POST(req: NextRequest) {
     await ensureTaskTable();
     const pool = getPool();
     const result = await pool.query(
-      `INSERT INTO task (title, description, user_id)
-       VALUES ($1, $2, $3)
+      `INSERT INTO task (title, description, status, user_id)
+       VALUES ($1, $2, 'pending', $3)
        RETURNING id, title, description, status, created_at, updated_at`,
       [title, description, userId]
     );
