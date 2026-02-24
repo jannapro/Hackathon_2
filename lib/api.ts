@@ -1,6 +1,5 @@
-// Tasks are served by Next.js API routes on the same origin.
-// Set NEXT_PUBLIC_API_URL only if you deploy the FastAPI backend separately.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+// All API routes are on the same origin — always use relative URLs.
+const API_BASE = "";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = {
