@@ -34,7 +34,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskCreated }: AddTaskModalPro
 
     setLoading(true);
     try {
-      const res = await api.post("/api/tasks/", { title: t, description: d });
+      const res = await api.post("/api/tasks", { title: t, description: d });
       if (!res.ok) {
         const data = await res.json();
         setError(data.detail?.[0]?.message || data.detail || "Failed to create task");

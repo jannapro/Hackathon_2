@@ -48,7 +48,7 @@ function TasksContent() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.get("/api/tasks/");
+      const res = await api.get("/api/tasks");
       if (!res.ok) {
         setError(res.status === 401 ? "Session expired. Please log in again." : "Failed to load tasks");
         return;
@@ -63,7 +63,7 @@ function TasksContent() {
 
   const refreshSilently = useCallback(async () => {
     try {
-      const res = await api.get("/api/tasks/");
+      const res = await api.get("/api/tasks");
       if (res.ok) setAllTasks(await res.json());
     } catch { /* silently ignore */ }
   }, []);

@@ -39,7 +39,7 @@ export function TaskForm({ onTaskCreated }: TaskFormProps) {
 
     setLoading(true);
     try {
-      const res = await api.post("/api/tasks/", {
+      const res = await api.post("/api/tasks", {
         title: trimmedTitle,
         description: trimmedDesc,
       });

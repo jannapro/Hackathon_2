@@ -38,7 +38,7 @@ export function TaskList({ statusFilter, searchQuery, refreshTrigger }: TaskList
       }
 
       const queryStr = params.toString();
-      const url = `/api/tasks/${queryStr ? `?${queryStr}` : ""}`;
+      const url = `/api/tasks${queryStr ? `?${queryStr}` : ""}`;
       const res = await api.get(url);
 
       if (!res.ok) {
