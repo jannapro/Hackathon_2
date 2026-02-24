@@ -3,6 +3,7 @@
   "env": {
     "BETTER_AUTH_URL": "https://hackathon-2-eta-neon.vercel.app",
     "BETTER_AUTH_SECRET": "MWleoOUIOIDobutuYXwfhL70Tn13kY9F",
-    "DATABASE_URL": "postgresql://neondb_owner:npg_8AKcQD9dlxTo@ep-weathered-pine-ai1380s3-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require"
+    "DATABASE_URL": "postgresql://neondb_owner:npg_8AKcQD9dlxTo@ep-weathered-pine-ai1380s3-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require",
+    "NEXT_PUBLIC_OPENAI_DOMAIN_KEY": "domain_pk_699dff0d0eb081948138acb7a2f1b85609515ca894520a5b"
   }
 }
